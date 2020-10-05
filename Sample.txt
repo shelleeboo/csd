@@ -1,0 +1,71 @@
+
+    public static void main(String args[]) throws Exception {
+
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(
+                System.in))) {
+
+            // Request access token from AAD
+            AuthenticationResult result = getAccessTokenFromUserCredentials(
+                    "", "");
+            // Get user info from Microsoft Graph
+            System.out.println(result.getAccessToken());
+            String userInfo = getUserInfoFromGraph(result.getAccessToken());
+            System.out.println(userInfo);
+        }
+   }
+
+    private static AuthenticationResult getAccessTokenFromUserCredentials(
+            String username, String password) throws Exception {
+        AuthenticationContext context;
+        AuthenticationResult result;
+        ClientCredential cc = new ClientCredential(CLIENT_ID,CLIENT_SECRET);
+        ExecutorService service = null;
+        try {
+            service = Executors.newFixedThreadPool(1);
+            context = new AuthenticationContext(AUTHORITY, false, service);
+            Future<AuthenticationResult> future = context.acquireToken(
+                    resource, cc,
+                    null);
+            result = future.get();
+        } finally {
+            service.shutdown();
+        }
+
+        if (result == null) {
+            throw new ServiceUnavailableException(
+                    "authentication result was null");
+        }
+        return result;
+    }
+
+    private static String getUserInfoFromGraph(String accessToken) throws IOException {
+
+        URL url = new URL(resource +"/Patient");
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+        conn.setRequestMethod("GET");
+        conn.setRequestProperty("Authorization", "Bearer " + accessToken);
+        conn.setRequestProperty("Accept","application/json");
+
+        int httpResponseCode = conn.getResponseCode();
+        if(httpResponseCode == 200) {
+            BufferedReader in = null;
+            StringBuilder response;
+            try{
+                in = new BufferedReader(
+                        new InputStreamReader(conn.getInputStream()));
+                String inputLine;
+                response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+            } finally {
+                in.close();
+            }
+            return response.toString();
+        } else {
+            return String.format("Connection returned HTTP code: %s with message: %s",
+                    httpResponseCode, conn.getResponseMessage());
+        }
+    }
+}
