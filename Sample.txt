@@ -69,3 +69,50 @@
         }
     }
 }
+
+
+----
+
+
+
+import com.microsoft.aad.adal4j.AuthenticationContext
+import com.microsoft.aad.adal4j.AuthenticationResult
+import com.microsoft.aad.adal4j.ClientCredential
+import java.io.BufferedReader
+import java.io.IOException
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import javax.naming.ServiceUnavailableException
+
+object AuthHelper {
+
+
+      fun getAccessToken( audience: String, authority: String,
+        clientId: String, clientSecret: String
+    ): AuthenticationResult {
+        val context: AuthenticationContext
+        val result: AuthenticationResult?
+        val cc = ClientCredential(clientId, clientSecret)
+        lateinit var service: ExecutorService
+          try {
+            service = Executors.newFixedThreadPool(1)
+            context = AuthenticationContext(authority, false, service)
+            val future: Future<AuthenticationResult> = context.acquireToken(
+                audience, cc,
+                null
+            )
+            result = future.get()
+        } finally {
+            service.shutdown()
+        }
+
+          return result?: throw ServiceUnavailableException("Authentication was empty")
+
+      }
+
+
+}
